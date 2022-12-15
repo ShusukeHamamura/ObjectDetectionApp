@@ -49,10 +49,4 @@ https://user-images.githubusercontent.com/106325569/207815994-b5fa62d2-517f-4efc
 * E-mail
  
 # License
-ライセンスを明示する
- 
-"hoge" is under [MIT license](https://en.wikipedia.org/wiki/MIT_License).
- 
-社内向けなら社外秘であることを明示してる
- 
-"hoge" is Confidential.
+
