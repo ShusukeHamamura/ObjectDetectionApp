@@ -83,7 +83,6 @@ class MOT:
     def track(self, outputs, ratio):
         if outputs is not None:
             outputs = outputs.cpu().numpy()
-            # outputs = [Detection(box=box[:4] / ratio, score=box[4] * box[5], class_id=box[6]) for box in outputs]
             outputs = [Detection(box=box[:4], score=box[4], class_id=box[5]) for box in outputs]
         else:
             outputs = []
@@ -105,11 +104,10 @@ class LINE:
         requests.post(self.line_notify_api, headers=self.headers, files=file, data=text)
 
 def detect(opt, save_img=False):
-    demo, source, weights, save_txt, imgsz, trace = opt.demo, opt.source, opt.weights, opt.save_txt, opt.img_size, not opt.no_trace
-    save_img = True
+    demo, source, weights, imgsz, view_img, save_img= opt.demo, opt.source, opt.weights, opt.img_size, opt.view_img, opt.save
     
     # ビデオ出力の縮小パラメーター
-    resize = 1
+    resize = 1.5
     reductionRatio = 0.75        # 送信する際の縮小比率
 
     # デバッグするかどうか
@@ -136,7 +134,7 @@ def detect(opt, save_img=False):
     jsx_No = '****'
     
     # LINE Notify 出力設定
-    index_LINE = True
+    index_LINE = False
     
     # 画像表示設定
     index_Display = True
@@ -184,9 +182,6 @@ def detect(opt, save_img=False):
     mot = MOT()
 
     # 結果保存ディレクトリ
-    # if save_img:
-    #     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
-    #     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
     save_dir = "./yolov7/result_box"
 
     # 初期化
@@ -198,9 +193,6 @@ def detect(opt, save_img=False):
     model = attempt_load(weights, map_location=device)  # load FP32 model
     stride = int(model.stride.max())  # model stride
     imgsz = check_img_size(imgsz, s=stride)  # check img_size
-
-    if trace:
-        model = TracedModel(model, device, opt.img_size)
 
     if half:
         model.half()  # to FP16
@@ -268,15 +260,13 @@ def detect(opt, save_img=False):
         ret_val, im0s = cap.read()
         if ret_val:
             # 入力画像変換処理
-            # Padded resize
             img = letterbox(im0s, 640, stride=32)[0]
-            # Convert
-            img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+            img = img[:, :, ::-1].transpose(2, 0, 1)
             img = np.ascontiguousarray(img)
             
             img = torch.from_numpy(img).to(device)
-            img = img.half() if half else img.float()  # uint8 to fp16/32
-            img /= 255.0  # 0 - 255 to 0.0 - 1.0
+            img = img.half() if half else img.float()
+            img /= 255.0 
             
             ratio = min(int(imgsz) / im0s.shape[0], int(imgsz) / im0s.shape[1])
             
@@ -766,7 +756,6 @@ def detect(opt, save_img=False):
 
             # ビデオ出力の際のフレームの縮小
             output_frame = cv2.resize(im0,(int(width/resize), int(height/resize)))
-            # ファイル出力する場合
             if save_img:
                 vid_writer.write(output_frame)
                 if index_Display:
@@ -774,8 +763,7 @@ def detect(opt, save_img=False):
                 ch = cv2.waitKey(1)
                 if ch == 27 or ch == ord("q") or ch == ord("Q"):
                     break
-            # ファイル出力しない場合
-            else:
+            if view_img:
                 if index_Display:
                     cv2.imshow('frame', output_frame)
                 ch = cv2.waitKey(1)
@@ -793,14 +781,7 @@ def detect(opt, save_img=False):
                 for j in range(1, len(pts[i])):
                     pts[i] = deque(maxlen=MaxStep)
         existCheck1 = [0]*Nbox
-
-    if save_txt or save_img:
-        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
-        print(f"Results saved to {save_dir}{s}")
-
-    print(f'Done. ({time.time() - t0:.3f}s)')
-
-
+        
 def main(input, weight, view=False):
     parser = argparse.ArgumentParser()
     parser.add_argument('--demo', type=str, default="video")
@@ -813,7 +794,7 @@ def main(input, weight, view=False):
     parser.add_argument('--view-img', default=view, help='display results')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
-    parser.add_argument('--save', default=True, help='do not save images/videos')
+    parser.add_argument('--save', default=False, help='do not save images/videos')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
     parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
@@ -826,4 +807,4 @@ def main(input, weight, view=False):
 
     detect(opt)
             
-# main("./inference/videos/sample01.mp4", "weights/car_best.pt")
+# main("../yolov7/inference/videos/sample01.mp4", "yolov7/weights/car_best.pt", view=True)
