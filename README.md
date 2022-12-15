@@ -1,1 +1,3 @@
-# object_detection_app
+# 物体検出アプリ
+
+## デモ動画
