@@ -1,8 +1,8 @@
 # 物体検出アプリ
  
-yolov7を用いた画像・動画・Webカメラでの物体検出が行えます
+yolov7を用いた画像・動画・Webカメラでの物体検出が行えます。
 
-また物体検出と物体追跡を用いて車両の速度検知を行えます
+また物体検出と物体追跡を用いて車両の速度検知を行えます。
  
 # DEMO
  
@@ -14,11 +14,11 @@ yolov7を用いた画像・動画・Webカメラでの物体検出が行えま�
  
  物体追跡にはmotpy(https://github.com/wmuron/motpy.git)
  
- を使用しました
+ を使用しました。
  
- 主に私が書いたコードはApp.py、yolov7/detect_app.py、yolov7/detect_speed.pyとなっております
+ 主に私が書いたコードはApp.py、yolov7/detect_app.py、yolov7/detect_speed.pyとなっております。
  
- yolov7/detect_app.py、yolov7/detect_speed.pyに関しては既存のdetect.pyを元に作成いたしました
+ yolov7/detect_app.py、yolov7/detect_speed.pyに関しては既存のyolov7/detect.pyを元に作成いたしました。
  
 注目してもらいたいプログラムはApp.pyとyolov7/detect_speed.pyです。
 
