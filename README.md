@@ -12,6 +12,8 @@ https://user-images.githubusercontent.com/106325569/207815994-b5fa62d2-517f-4efc
  
  車両の速度検知
  
+https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869-8cf4-2c1137e60b07.mp4
+
 # Features
  
  物体検出にはyolov7(https://github.com/WongKinYiu/yolov7.git)
