@@ -24,6 +24,11 @@ yolov7を用いた画像・動画・Webカメラでの物体検出が行えま�
 # Usage
  
  python App.py
+ ```bash
+git clone https://github.com/hoge/~
+cd examples
+python demo.py
+```
  
 # Note
  
