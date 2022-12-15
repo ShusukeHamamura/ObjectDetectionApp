@@ -10,14 +10,18 @@ yolov7を用いた画像・動画・Webカメラでの物体検出が行えま�
  
 # Features
  
- 物体検出にはyolov7(https://github.com/WongKinYiu/yolov7.git)、
+ 物体検出にはyolov7(https://github.com/WongKinYiu/yolov7.git)
+ 
  物体追跡にはmotpy(https://github.com/wmuron/motpy.git)
+ 
  を使用しました
  
- 主に私が書いたコードはApp.py,yolov7/detect_app.py,yolov7/detect_speed.pyとなっております
- yolov7/detect_app.py,yolov7/detect_speed.pyに関しては既存のdetect.pyを元に作成いたしました
+ 主に私が書いたコードはApp.py、yolov7/detect_app.py、yolov7/detect_speed.pyとなっております
+ 
+ yolov7/detect_app.py、yolov7/detect_speed.pyに関しては既存のdetect.pyを元に作成いたしました
  
 注目してもらいたいプログラムはApp.pyとyolov7/detect_speed.pyです。
+
 特にdetect_speed.pyでは106行からのdetect関数内の処理に注目してもらいたいです。
  
 # Requirement
