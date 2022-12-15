@@ -23,7 +23,7 @@ yolov7を用いた画像・動画・Webカメラでの物体検出が行えま�
  
 # Usage
  
- 
+ python App.py
  
 # Note
  
