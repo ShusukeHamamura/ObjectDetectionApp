@@ -18,18 +18,13 @@ yolov7を用いた画像・動画・Webカメラでの物体検出が行えま�
 特にdetect_speed.pyでは106行からのdetect関数内の処理に注目してもらいたいです。
  
 # Requirement
- 
+  ```bash
  pip install -r requirements.txt
- 
-# Usage
- 
- python App.py
- ```bash
-git clone https://github.com/hoge/~
-cd examples
-python demo.py
 ```
- 
+# Usage
+ ```bash
+ python App.py
+``` 
 # Note
  
 注意点などがあれば書く
