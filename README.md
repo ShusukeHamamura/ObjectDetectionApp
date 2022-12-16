@@ -35,6 +35,9 @@ YOLOv7で物体検出→motpyで物体追跡→追跡したトラッカーを用
   ```bash
  pip install -r requirements.txt
 ```
+
+*Pytorchをインストールする必要あり
+
 # Usage
  ```bash
  python App.py
