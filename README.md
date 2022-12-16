@@ -16,11 +16,7 @@ https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869
 
 # Features
  
- 物体検出にはyolov7[1]
- 
- 物体追跡にはmotpy[2]
- 
- を使用しました。
+ 物体検出にはyolov7[1]、物体追跡にはmotpy[2]を使用しています。
  
  主に私が書いたコードはApp.py、yolov7/detect_app.py、yolov7/detect_speed.pyとなっております。
  
