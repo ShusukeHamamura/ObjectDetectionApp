@@ -1,4 +1,4 @@
-# 物体検出アプリ
+# Object Detection App
  
 yolov7を用いた画像・動画・Webカメラでの物体検出が行えます。
 
