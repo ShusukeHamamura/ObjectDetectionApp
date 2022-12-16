@@ -35,7 +35,7 @@ class Application:
         # except:
         #     print(self.__class__.__name__ + ':Use default value(s)', file=sys.stderr)
         root.geometry(self.clientWidth + 'x' + self.clientHeight)
-        root.protocol('WM_DELETE_WINDOW', self.menuFileExit)
+        root.protocol('WM_DELETE_WINDOW', self.menuExit)
         
         # 画像表示の場所指定とサイズ指定
         # 入力画像設定
@@ -49,15 +49,15 @@ class Application:
         menu.add_cascade(menu=self.menuFile, label='ファイル', underline=5)
         self.menuFile.add_command(label='開く', underline=3, command=self.menuFileOpen)
         self.menuFile.add_separator()
-        self.menuFile.add_command(label='終了', underline=3, command=self.menuFileExit)
+        self.menuFile.add_command(label='アプリの終了', underline=3, command=self.menuExit)
 
         self.menuRun = Menu(menu)
         menu.add_cascade(menu=self.menuRun, label='実行', underline=3)
-        self.menuRun.add_command(label='画像認識', underline=10, command=lambda: self.Mythread(self.yolo_image))
+        self.menuRun.add_command(label='画像で検知', underline=10, command=lambda : self.Mythread(self.yolo_image))
         self.menuRun.add_separator()
-        self.menuRun.add_command(label='動画認識', underline=10, command=lambda: self.Mythread(self.yolo_video))
+        self.menuRun.add_command(label='動画で検知', underline=10, command=lambda: self.Mythread(self.yolo_video))
         self.menuRun.add_separator()
-        self.menuRun.add_command(label='Webカメラ認識', underline=10, command=lambda: self.Mythread(self.yolo_webcam))
+        self.menuRun.add_command(label='Webカメラで検知', underline=10, command=lambda: self.Mythread(self.yolo_webcam))
         self.menuRun.add_separator()
         self.menuRun.add_command(label='車両速度検知', underline=10, command=lambda: self.Mythread(self.speed_detection))
 
@@ -162,12 +162,11 @@ class Application:
             ratio = min(can_size / w, can_size / h)
             self.input_image = img.resize((round(ratio * w), round(ratio * h)))
             self.input_image = ImageTk.PhotoImage(self.input_image)
-            # self.input_canvas.create_image(0, 0, image=self.input_image, anchor=NW)
             self.input_canvas.create_image(can_size/2, can_size/2, image=self.input_image)
         else :
             messagebox.showerror('error', "画像または動画ファイルを選択してください")
     
-    def menuFileExit(self):
+    def menuExit(self):
         cp = configparser.ConfigParser()
         cp['Client'] = { 'Height': str(root.winfo_height()),
                         'Width': str(root.winfo_width())}

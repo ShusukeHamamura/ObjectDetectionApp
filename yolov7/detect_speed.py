@@ -1,14 +1,11 @@
 import argparse
-import time
 import numpy as np
 import scipy
 import sys
 import cv2
 import os
 import time
-import json
 import requests
-import logging
 import logging.handlers
 import torch
 import torch.backends.cudnn as cudnn
@@ -17,64 +14,14 @@ from models.experimental import attempt_load
 from utils.datasets import letterbox
 from utils.general import check_img_size, non_max_suppression, apply_classifier, scale_coords, set_logging
 from utils.plots import plot_one_box
-from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
+from utils.torch_utils import select_device, load_classifier
 from collections import deque
 
-# motpy
+# motpy関連
 sys.path.append('./yolov7/motpy/motpy')
 from core import Detection
 from tracker import MultiObjectTracker
 from testing_viz import draw_track
-
-# MQTTによる送信関連
-from multiprocessing.connection import answer_challenge
-import paho.mqtt.client as mqtt     # MQTTのライブラリをインポート
-import ssl
-import common
-import boto3
-
-# ブローカーに接続できたときの処理
-def on_connect(client, userdata, flag, rc):
-    print("Connected with result code " + str(rc))
-
-# ブローカーが切断したときの処理
-def on_disconnect(client, userdata, rc):
-    if rc != 0:
-        print("Unexpected disconnection.")
-
-# publishが完了したときの処理
-def on_publish(client, userdata, mid):
-    display_flag = False
-    if display_flag:
-        print("publish: {0}".format(mid))
-
-# MQTT送信クラス
-class mqtt_iotcore():
-
-    def __init__(self):
-        return
-
-    def mqtt_open(self):
-        print("mqtt_open: ")
-
-        self.mqttc = mqtt.Client()
-        self.mqttc.on_connect = on_connect         # 接続時のコールバック関数を登録
-        self.mqttc.on_disconnect = on_disconnect   # 切断時のコールバックを登録
-        self.mqttc.on_publish = on_publish         # メッセージ送信時のコールバック
-        self.mqttc.tls_set(
-            ca_certs=common.MQTT_SERVER_ROOTCAPATH, 
-            certfile=common.MQTT_SERVER_CERTIFICATEPATH, 
-            keyfile=common.MQTT_SERVER_PRIVATEKEYPATH, 
-            cert_reqs=ssl.CERT_REQUIRED, 
-            tls_version=ssl.PROTOCOL_TLSv1_2, 
-            ciphers=None)
-        self.mqttc.connect(common.MQTT_SERVER_HOST, common.MQTT_SERVER_PORT, common.MQTT_KEEPALIVE)
-        self.mqttc.loop_start()    # subはloop_forever()だが，pubはloop_start()で起動だけさせる
-        time.sleep(1)
-        return
-
-    def mqtt_publish(self, send_json):
-        self.mqttc.publish(common.MQTT_TOPIC_RESULT, json.dumps(send_json), 1)
 
 class MOT:
     def __init__(self):
@@ -107,111 +54,60 @@ def detect(opt, save_img=False):
     demo, source, weights, imgsz, view_img, save_img= opt.demo, opt.source, opt.weights, opt.img_size, opt.view_img, opt.save
     
     # ビデオ出力の縮小パラメーター
-    resize = 1.5
-    reductionRatio = 0.75        # 送信する際の縮小比率
+    resize = 1.5                #縮小倍率
+    reductionRatio = 0.75       # 送信する際の縮小比率
 
     # デバッグするかどうか
-    debug_index = True          # True:デバッグ出力する、False:しない
+    debug_index = True          # 出力結果を表示するかどうか
 
     # 速度算出パラメータ
-    speed_index = -1            # 算出位置：下側--->0、左側--->1、右側--->2
+    speed_index = -1            # 算出位置：下側→0、左側→1、右側→2
                                 # 判定前初期値は-1で、自動的に判定される。
     speed_coefficent = 1.0      # 速度算出補正パラメータ
                                 # 初期値は1.0であるが、キャリブレーションにより自動的に計算される。
-    sensory_coefficient = 1.0   # 誘導員の速度感覚係数（90km/h--->0.9）
-    speed_ratio = 0.9           # 速度算出位置の画面に対する比率
-    speed_limit = 50            # 最小速度（この速度以下は処理しない）
-    calibration = 6            # キャリブレション実施回数（実際に実施回数は、-1したもの）
+    sensory_coefficient = 1.0   # 誘導員の速度感覚係数（90km/h→0.9）
+    speed_ratio = 0.9           # 速度算出位置(画面比率)
+    speed_limit = 50            # 最小速度
+    calibration = 6             # キャリブレション実施回数
     max_calib_direction = 5     # 方向を算出する際の試行回数
 
     # 軌跡保存パラメータ
-    MaxStep = 30        	    # 保存する同じIDに対する最大ステップ数
-    Nbox = 20           	    # 保存する違うIDのBoxの数
+    MaxStep = 30        	    # 保存する同じトラッカーに対する最大ステップ数
+    Nbox = 20           	    # 保存する違うトラッカーのBoxの数
     steplag = 10                # ステップlag
-
-    # MQTT出力設定
-    index_MQTT = False
-    jsx_No = '****'
     
     # LINE Notify 出力設定
     index_LINE = False
     
-    # 画像表示設定
-    index_Display = True
-    
-    # common.py非表示のため
-    # #ログディレクトリ作成
-    # try:
-    #     os.makedirs(common.LOG_DIR)
-    # except FileExistsError:
-    #     pass
-
-    # #ログ設定
-    # formatter = logging.Formatter('%(asctime)s %(levelname)s:%(message)s')
-    # handler = logging.handlers.RotatingFileHandler(filename=common.LOG_FILE_NAME, maxBytes=1000000, backupCount=9)
-    # handler.setFormatter(formatter)
-    # logger = logging.getLogger()
-    # logger.setLevel(logging.INFO)
-    # logger.addHandler(handler)
-
-    # logging.info('=======================================')
-    # logging.info('Start send AI result')
-    
-    # MQTT Connect
-    if index_MQTT:
-        ai_guide_mqtt = mqtt_iotcore()
-        s3_cl = boto3.client(
-            's3',
-            aws_access_key_id=common.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=common.AWS_SECRET_ACCESS_KEY,
-            region_name=common.REGION_NAME
-        )
-        try:
-            ai_guide_mqtt.mqtt_open()
-        except:
-            logging.error('  Error end')
-            del ai_guide_mqtt
-            time.sleep(3)
-            sys.exit()
+    # Motpyの呼び出し
+    mot = MOT()
     
     # LINE Notify
     if index_LINE:
         line = LINE()
 
-    # Motpyの呼び出し
-    mot = MOT()
-
-    # 結果保存ディレクトリ
+    # 結果一時保存ディレクトリ
     save_dir = "./yolov7/result_box"
 
     # 初期化
     set_logging()
     device = select_device(opt.device)
-    half = device.type != 'cpu'  # CUDA でのみサポートされる半精度
-
-    # Load model
-    model = attempt_load(weights, map_location=device)  # load FP32 model
-    stride = int(model.stride.max())  # model stride
-    imgsz = check_img_size(imgsz, s=stride)  # check img_size
+    half = device.type != 'cpu'
+    model = attempt_load(weights, map_location=device)
+    stride = int(model.stride.max())
+    imgsz = check_img_size(imgsz, s=stride)
 
     if half:
         model.half()  # to FP16
 
-    # 2 段階の分類器
     classify = False
     if classify:
-        modelc = load_classifier(name='resnet101', n=2)  # initialize
+        modelc = load_classifier(name='resnet101', n=2)
         modelc.load_state_dict(torch.load('weights/resnet101.pt', map_location=device)['model']).to(device).eval()
-    
-    # 動画,Webカメラの取得
-    # Webカメラの場合
+
+    # 動画・Webカメラ
     if demo == "video" or demo == "webcam": 
         cap = cv2.VideoCapture(source if opt.demo == "video" else opt.camid)
-    
-    # ネットワークカメラの場合
-    elif demo == "ipcam":
-        # vivotekカメラの場合の設定
-        cap = cv2.VideoCapture('****')
 
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)       # 動画の幅（float）
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)     # 動画の高さ（float）
@@ -224,7 +120,6 @@ def detect(opt, save_img=False):
             save_path = os.path.join(save_folder, os.path.splitext(source.split("/")[-1])[0] + '.mp4')
         else:
             save_path = os.path.join(save_folder, "camera.mp4")
-        # logger.info(f"video save_path is {save_path}")
         vid_writer = cv2.VideoWriter(
             save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width/resize), int(height/resize))
         )
@@ -239,8 +134,8 @@ def detect(opt, save_img=False):
     old_img_b = 1
     
     # 軌跡を保存する配列を定義
-    pts = [deque(maxlen=MaxStep) for _ in range(Nbox)]
-    pts_velocity = [deque(maxlen=MaxStep) for _ in range(Nbox)]
+    pts = [deque(maxlen=MaxStep) for _ in range(Nbox)]              #トラッカーの中心座標
+    pts_velocity = [deque(maxlen=MaxStep) for _ in range(Nbox)]     #トラッカーの角座標
     IDStrings = [""]*Nbox       # IDの最初の8文字を格納した配列
     existCheck0 = [0]*Nbox      # IDが存在するかを保存しておく配列
     existCheck1 = [0]*Nbox      # フレームごとにIDが存在するかを保存しておく配列
@@ -249,12 +144,9 @@ def detect(opt, save_img=False):
     directionBox = [0]*Nbox     # 方向チェック済みかどうか
     ave_speed = np.zeros(calibration-1)
     
-
     detection_No = -3       # キャリブレーションで最初に破棄する枚数
     calib_count = 0         # キャリブレーションのときのカウント
     average_speed = 0.0     # 速度補正の際の平均速度
-
-    t0 = time.time()
     
     while True:
         ret_val, im0s = cap.read()
@@ -263,11 +155,10 @@ def detect(opt, save_img=False):
             img = letterbox(im0s, 640, stride=32)[0]
             img = img[:, :, ::-1].transpose(2, 0, 1)
             img = np.ascontiguousarray(img)
-            
             img = torch.from_numpy(img).to(device)
             img = img.half() if half else img.float()
             img /= 255.0 
-            
+
             ratio = min(int(imgsz) / im0s.shape[0], int(imgsz) / im0s.shape[1])
             
             if img.ndimension() == 3:
@@ -307,7 +198,6 @@ def detect(opt, save_img=False):
                     
                 # motpy処理
                 tracks = mot.track(det, ratio)
-                # motpy結果描画
                 for trc in tracks:
                     class_id = int(trc.class_id)
                     if class_id > 0:
@@ -316,7 +206,6 @@ def detect(opt, save_img=False):
                         bottom = int(trc.box[3])
                         left = int(trc.box[0])
                         right = int(trc.box[2])
-                        boxsize = (abs(bottom-top),abs(left-right))
                         # IDの最初の８文字を切り出す
                         string = trc.id[:8]
                         draw_track(im0, trc, ratio, thickness=2)
@@ -373,10 +262,11 @@ def detect(opt, save_img=False):
 
                         # *************************************************
                         # 移動方向の判定
+                        # motpyの性質上予測したボックスが動画のwidth>0,width<0
+                        # height>0となるので、それを利用して移動方向の判定を行う
                         # ************************************************* 
                         if calib_count <= max_calib_direction:
                             for k in range(Nbox):
-                                mqIndex = False
                                 lIndex = False
                                 if directionBox[k]==0:
                                     j=len(pts_velocity[k])-1
@@ -390,7 +280,6 @@ def detect(opt, save_img=False):
                                             directionCheck[0] += 1
                                             calib_count += 1
                                             directionBox[i]=1
-                                            mqIndex = True
                                             lIndex = True
 
                                         # 左側判定
@@ -398,7 +287,6 @@ def detect(opt, save_img=False):
                                             directionCheck[1] += 1
                                             calib_count += 1
                                             directionBox[i]=1
-                                            mqIndex = True
                                             lIndex = True
 
                                         # 右側判定
@@ -406,7 +294,6 @@ def detect(opt, save_img=False):
                                             directionCheck[2] += 1
                                             calib_count += 1
                                             directionBox[i]=1
-                                            mqIndex = True
                                             lIndex = True
 
                                         # 最終的な方向判定
@@ -414,29 +301,6 @@ def detect(opt, save_img=False):
                                             calib_count += 1
                                             max_value = max(directionCheck)
                                             speed_index = directionCheck.index(max_value)
-                                        
-                                        # MQTT出力
-                                        if index_MQTT and mqIndex:
-                                            # 処理時間の生成
-                                            Current_time = int(time.time())
-                                            # 画像ファイルのアップロード
-                                            s3_filename = jsx_No + "_" + str(Current_time) + ".jpg"
-                                            s3_cl.upload_file('direction.jpg', common.BUCKET_NAME, s3_filename)
-                                            speed = 100
-
-                                            pict_url = s3_cl.generate_presigned_url(
-                                                ClientMethod = 'get_object',
-                                                Params = {'Bucket' : common.BUCKET_NAME, 'Key' : s3_filename},
-                                                ExpiresIn = common.S3_URL_TIMEOUT,
-                                                HttpMethod = 'GET'
-                                            )
-
-                                            # JSONデータ作成
-                                            send_json = {"message_kind": 11, "send_time": Current_time, "imei": jsx_No, "pict_time": Current_time, "speed": speed, "pict_url": pict_url}
-
-                                            # mqtt publish
-                                            ai_guide_mqtt.mqtt_publish(send_json)
-                                            mqIndex = False
                                         
                                         # LINENotify出力
                                         if index_LINE and lIndex:
@@ -506,37 +370,6 @@ def detect(opt, save_img=False):
                                                     img_cut = cv2.resize(img_cut, (int(fx*reductionRatio), int(fy*reductionRatio)))
                                                     if debug_index:
                                                         cv2.imshow('sample.jpg',img_cut)
-                                                # MQTT出力
-                                                if index_MQTT:
-                                                    if skip_index:
-                                                        # 処理時間の生成
-                                                        Current_time = int(time.time())
-                                                        if (detection_No < calibration):
-                                                            # 処理時間の生成
-                                                            Current_time = int(time.time())
-                                                            # 画像ファイルのアップロード
-                                                            s3_filename = jsx_No + "_" + str(Current_time) + ".jpg"
-                                                            s3_cl.upload_file('velocity.jpg', common.BUCKET_NAME, s3_filename)
-                                                            speed = 100
-                                                        elif (detection_No >= calibration):
-                                                            # 切り出し画像の保存
-                                                            cv2.imwrite('dest.jpg',img_cut)
-                                                            # 画像ファイルのアップロード
-                                                            s3_filename = jsx_No + "_" + str(Current_time) + ".jpg"
-                                                            s3_cl.upload_file('dest.jpg', common.BUCKET_NAME, s3_filename)
-
-                                                        pict_url = s3_cl.generate_presigned_url(
-                                                            ClientMethod = 'get_object',
-                                                            Params = {'Bucket' : common.BUCKET_NAME, 'Key' : s3_filename},
-                                                            ExpiresIn = common.S3_URL_TIMEOUT,
-                                                            HttpMethod = 'GET'
-                                                        )
-
-                                                        # JSONデータ作成
-                                                        send_json = {"message_kind": 11, "send_time": Current_time, "imei": jsx_No, "pict_time": Current_time, "speed": speed, "pict_url": pict_url}
-
-                                                        # mqtt publish
-                                                        ai_guide_mqtt.mqtt_publish(send_json)
                                                         
                                                 # LINENotify出力
                                                 if index_LINE:
@@ -608,36 +441,6 @@ def detect(opt, save_img=False):
                                                     img_cut = cv2.resize(img_cut, (int(fx*reductionRatio), int(fy*reductionRatio)))
                                                     if debug_index:
                                                         cv2.imshow('sample.jpg',img_cut)
-                                                # MQTT出力
-                                                if index_MQTT:
-                                                    if skip_index:
-                                                        # 処理時間の生成
-                                                        Current_time = int(time.time())
-                                                        if (detection_No < calibration):
-                                                            Current_time = int(time.time())
-                                                            # 画像ファイルのアップロード
-                                                            s3_filename = jsx_No + "_" + str(Current_time) + ".jpg"
-                                                            s3_cl.upload_file('velocity.jpg', common.BUCKET_NAME, s3_filename)
-                                                            speed = 100
-                                                        elif (detection_No >= calibration):
-                                                            # 切り出し画像の保存
-                                                            cv2.imwrite('dest.jpg',img_cut)
-                                                            # 画像ファイルのアップロード
-                                                            s3_filename = jsx_No + "_" + str(Current_time) + ".jpg"
-                                                            s3_cl.upload_file('dest.jpg', common.BUCKET_NAME, s3_filename)
-
-                                                        pict_url = s3_cl.generate_presigned_url(
-                                                            ClientMethod = 'get_object',
-                                                            Params = {'Bucket' : common.BUCKET_NAME, 'Key' : s3_filename},
-                                                            ExpiresIn = common.S3_URL_TIMEOUT,
-                                                            HttpMethod = 'GET'
-                                                        )
-
-                                                        # JSONデータ作成
-                                                        send_json = {"message_kind": 11, "send_time": Current_time, "imei": jsx_No, "pict_time": Current_time, "speed": speed, "pict_url": pict_url}
-
-                                                        # mqtt publish
-                                                        ai_guide_mqtt.mqtt_publish(send_json)
                                                 
                                                 # LINENotify出力
                                                 if index_LINE:
@@ -703,46 +506,12 @@ def detect(opt, save_img=False):
                                                 skip_index = False
                                                 if (left < right) and (top < bottom):
                                                     skip_index = True
-                                                    # print(frame.shape)
-                                                    # print(top, bottom, left, right)
                                                     img_cut = im0[top:bottom,left:right]
                                                     fx = img_cut.shape[1]
                                                     fy = img_cut.shape[0]
                                                     img_cut = cv2.resize(img_cut, (int(fx*reductionRatio), int(fy*reductionRatio)))
                                                     if debug_index:
                                                         cv2.imshow('sample.jpg',img_cut)
-
-                                                # MQTT出力
-                                                if index_MQTT:
-                                                    if skip_index:
-                                                        # 処理時間の生成
-                                                        Current_time = int(time.time())
-                                                        if (detection_No < calibration):
-                                                            # 処理時間の生成
-                                                            Current_time = int(time.time())
-                                                            # 画像ファイルのアップロード
-                                                            s3_filename = jsx_No + "_" + str(Current_time) + ".jpg"
-                                                            s3_cl.upload_file('velocity.jpg', common.BUCKET_NAME, s3_filename)
-                                                            speed = 100
-                                                        elif (detection_No >= calibration):
-                                                            # 切り出し画像の保存
-                                                            cv2.imwrite('dest.jpg',img_cut)
-                                                            # 画像ファイルのアップロード
-                                                            s3_filename = jsx_No + "_" + str(Current_time) + ".jpg"
-                                                            s3_cl.upload_file('dest.jpg', common.BUCKET_NAME, s3_filename)
-
-                                                        pict_url = s3_cl.generate_presigned_url(
-                                                            ClientMethod = 'get_object',
-                                                            Params = {'Bucket' : common.BUCKET_NAME, 'Key' : s3_filename},
-                                                            ExpiresIn = common.S3_URL_TIMEOUT,
-                                                            HttpMethod = 'GET'
-                                                        )
-
-                                                        # JSONデータ作成
-                                                        send_json = {"message_kind": 11, "send_time": Current_time, "imei": jsx_No, "pict_time": Current_time, "speed": speed, "pict_url": pict_url}
-
-                                                        # mqtt publish
-                                                        ai_guide_mqtt.mqtt_publish(send_json)
                                                 
                                                 # LINENotify出力
                                                 if index_LINE:
@@ -753,27 +522,23 @@ def detect(opt, save_img=False):
                                                         elif (detection_No >= calibration):
                                                             line.send_line(f'{str(speed)} km/h', './yolov7/dest.jpg')
 
-
-            # ビデオ出力の際のフレームの縮小
+            # フレームの縮小
             output_frame = cv2.resize(im0,(int(width/resize), int(height/resize)))
             if save_img:
                 vid_writer.write(output_frame)
-                if index_Display:
-                    cv2.imshow('frame',output_frame)
+                cv2.imshow('frame',output_frame)
                 ch = cv2.waitKey(1)
                 if ch == 27 or ch == ord("q") or ch == ord("Q"):
                     break
             if view_img:
-                if index_Display:
-                    cv2.imshow('frame', output_frame)
+                cv2.imshow('frame', output_frame)
                 ch = cv2.waitKey(1)
                 if ch == 27 or ch == ord("q") or ch == ord("Q"):
                     break
-        
         else:
             break
 
-        # フレームで、物体を検出していない場合
+        # フレームで物体を検出していない場合
         for i in range(Nbox):
             if existCheck0[i] != existCheck1[i]:
                 existCheck0[i] = 0
