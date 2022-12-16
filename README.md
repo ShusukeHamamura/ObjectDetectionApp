@@ -28,7 +28,7 @@ https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869
  
 注目してもらいたいプログラムはApp.pyとyolov7/detect_speed.pyです。
 
-特にdetect_speed.pyでは106行からのdetect関数内の処理に注目してもらいたいです。
+長いので特にdetect_speed.pyでは106行からのdetect関数内の処理に注目してもらいたいです。
  
 # Requirement
   ```bash
