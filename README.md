@@ -16,9 +16,9 @@ https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869
 
 # Features
  
- 物体検出にはyolov7(https://github.com/WongKinYiu/yolov7.git)
+ 物体検出にはyolov7[1]
  
- 物体追跡にはmotpy(https://github.com/wmuron/motpy.git)
+ 物体追跡にはmotpy[2]
  
  を使用しました。
  
@@ -52,3 +52,9 @@ https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869
  
 # License
 
+
+# Reference
+
+[1] https://github.com/WongKinYiu/yolov7.git
+
+[2] https://github.com/wmuron/motpy.git
