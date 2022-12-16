@@ -26,8 +26,7 @@ https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869
 
 長いので特にdetect_speed.pyでは106行からのdetect関数内の処理に注目してもらいたいです。
 
-## aa
-aaaaaa
+### 速度検知の簡単な流れ
  
 # Requirement
   ```bash
