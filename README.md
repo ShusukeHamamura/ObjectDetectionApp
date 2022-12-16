@@ -14,7 +14,7 @@ https://user-images.githubusercontent.com/106325569/207815994-b5fa62d2-517f-4efc
  
 https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869-8cf4-2c1137e60b07.mp4
 
-# Features
+# Note
  
  物体検出にはyolov7[1]、物体追跡にはmotpy[2]を使用しています。
  
@@ -25,6 +25,9 @@ https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869
 注目してもらいたいプログラムはApp.pyとyolov7/detect_speed.pyです。
 
 長いので特にdetect_speed.pyでは106行からのdetect関数内の処理に注目してもらいたいです。
+
+## aa
+aaaaaa
  
 # Requirement
   ```bash
