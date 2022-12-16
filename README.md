@@ -34,20 +34,11 @@ https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869
  ```bash
  python App.py
 ``` 
-# Note
- 
-注意点などがあれば書く
  
 # Author
  
-作成情報を列挙する
- 
 * 濵村秀亮
-* 所属
-* E-mail
- 
-# License
-
+* hama.i051ff@gmail.com
 
 # Reference
 
