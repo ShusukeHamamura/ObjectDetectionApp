@@ -29,7 +29,7 @@ https://user-images.githubusercontent.com/106325569/207821132-f753fe84-2060-4869
 
 ### ・速度検知の簡単な流れ
 
-YOLOv7で物体検出→motpyで物体追跡→追跡したトラッカーを用いて移動方向の判定→速度キャリブレーション→速度算出
+YOLOv7で物体検出→motpyで物体追跡→追跡したトラッカーを用いて移動方向の判定→速度キャリブレーション→速度算出→LINE Notifyを用いてLINEへ送信(MQTTを用いてAWSクラウドへ送信)
  
 # Requirement
   ```bash
